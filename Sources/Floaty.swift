@@ -5,6 +5,12 @@
 //  Copyright © 2015년 kciter. All rights reserved.
 //
 
+let screen_width: CGFloat = UIScreen.main.bounds.size.width
+let screen_height: CGFloat = UIScreen.main.bounds.size.height
+let titleH:CGFloat  = 44
+let navBarH:CGFloat = 64
+
+
 import UIKit
 
 @objc public enum FloatyOpenAnimationType: Int {
@@ -45,7 +51,7 @@ open class Floaty: UIView {
   /**
    This object's button size.
    */
-  @objc open var size: CGFloat = 56 {
+  @objc open var size: CGFloat = 54 {
     didSet {
       self.setNeedsDisplay()
       self.recalculateItemsOrigin()
@@ -71,12 +77,12 @@ open class Floaty: UIView {
   /**
    Padding from bottom right of UIScreen or superview.
    */
-  @objc open var paddingX: CGFloat = 14 {
+  @objc open var paddingX: CGFloat = 0 {
     didSet {
       self.setNeedsDisplay()
     }
   }
-  @objc open var paddingY: CGFloat = 14 {
+  @objc open var paddingY: CGFloat = 18 {
     didSet {
       self.setNeedsDisplay()
     }
@@ -146,6 +152,14 @@ open class Floaty: UIView {
       self.setNeedsDisplay()
     }
   }
+
+    @objc @IBInspectable
+    open var buttonSelectImage: UIImage? = nil {
+      didSet {
+        self.buttonSelectImageView = UIImageView(image: buttonSelectImage)
+        self.setNeedsDisplay()
+      }
+    }
   
   /**
    Plus icon color inside button.
@@ -163,7 +177,7 @@ open class Floaty: UIView {
    The space between the item and item.
    */
   @objc @IBInspectable
-  open var itemSpace: CGFloat = 14
+  open var itemSpace: CGFloat = 6
   
   /**
    Child item's default size.
@@ -178,7 +192,8 @@ open class Floaty: UIView {
       self.setNeedsDisplay()
     }
   }
-  
+
+  private var isMoved : Bool =  false
   /**
    Child item's default button color.
    */
@@ -288,6 +303,11 @@ open class Floaty: UIView {
    */
   fileprivate var plusLayer: CAShapeLayer = CAShapeLayer()
   
+   /**
+     Button image view.
+    */
+   fileprivate var buttonSelectImageView: UIImageView = UIImageView()
+    
   /**
    Button image view.
    */
@@ -426,8 +446,9 @@ open class Floaty: UIView {
                      usingSpringWithDamping: 0.55,
                      initialSpringVelocity: 0.3,
                      options: UIView.AnimationOptions(), animations: { () -> Void in
-                      self.plusLayer.transform = CATransform3DMakeRotation(self.degreesToRadians(self.rotationDegrees), 0.0, 0.0, 1.0)
-                      self.buttonImageView.transform = CGAffineTransform(rotationAngle: self.degreesToRadians(self.rotationDegrees))
+                      //self.plusLayer.transform = CATransform3DMakeRotation(self.degreesToRadians(self.rotationDegrees), 0.0, 0.0, 1.0)
+                      //self.buttonImageView.transform = CGAffineTransform(rotationAngle: self.degreesToRadians(self.rotationDegrees))
+          self.buttonImageView.image = self.buttonSelectImageView.image
                       self.overlayView.alpha = 1
       }, completion: {(f) -> Void in
         self.overlayViewDidCompleteOpenAnimation = true
@@ -492,6 +513,7 @@ open class Floaty: UIView {
                      options: [], animations: { () -> Void in
                       self.plusLayer.transform = CATransform3DMakeRotation(self.degreesToRadians(0), 0.0, 0.0, 1.0)
                       self.buttonImageView.transform = CGAffineTransform(rotationAngle: self.degreesToRadians(0))
+                     self.buttonImageView.image = self.buttonImage
                       self.overlayView.alpha = 0
       }, completion: {(f) -> Void in
         if self.overlayViewDidCompleteOpenAnimation {
@@ -819,16 +841,15 @@ open class Floaty: UIView {
     }
   }
   
-  fileprivate func setShadow() {
-    if !hasShadow {
-      return
+   fileprivate func setShadow() {
+        if !hasShadow {
+            return
+        }
+        circleLayer.shadowOffset = CGSize(width: 0.0, height: 3.0)
+        circleLayer.shadowRadius = 3.0
+        circleLayer.shadowColor = buttonShadowColor.cgColor
+        circleLayer.shadowOpacity = 0.2
     }
-    
-    circleLayer.shadowOffset = CGSize(width: 1, height: 1)
-    circleLayer.shadowRadius = 2
-    circleLayer.shadowColor = buttonShadowColor.cgColor
-    circleLayer.shadowOpacity = 0.4
-  }
   
   fileprivate func plusBezierPath() -> UIBezierPath {
     let path = UIBezierPath()
@@ -898,14 +919,14 @@ open class Floaty: UIView {
     
     if superview == nil {
       frame = CGRect(
-        x: (UIScreen.main.bounds.size.width - horizontalMargin) - paddingX,
+        x: (UIScreen.main.bounds.size.width - horizontalMargin) - 12,
         y: (UIScreen.main.bounds.size.height - verticalMargin) - paddingY,
         width: size,
         height: size
       )
     } else {
       frame = CGRect(
-        x: (superview!.bounds.size.width - horizontalMargin) - paddingX,
+        x: (superview!.bounds.size.width - horizontalMargin) - 12,
         y: (superview!.bounds.size.height - verticalMargin) - paddingY,
         width: size,
         height: size
@@ -938,7 +959,62 @@ open class Floaty: UIView {
     NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
   }
   
-  @objc open override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    @objc open override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super .touchesMoved(touches, with: event)
+
+        var touch = UITouch()
+        touch = (touches as NSSet).anyObject()! as! UITouch
+        //本次触摸点
+        let current : CGPoint =  touch.location(in: self)
+        //上次触摸点
+        let previous : CGPoint = touch.previousLocation(in: self)
+        var center :CGPoint = self.center
+        
+        //中心点移动触摸移动的距离
+        center.x += current.x - previous.x;
+        center.y += current.y - previous.y;
+        
+        let xMin : CGFloat = self.frame.size.width * 0.5 + 12
+        let xMax : CGFloat = screen_width - xMin
+        
+        let yMin : CGFloat = self.frame.size.height * 0.5 + 64 + 80
+        let yMax : CGFloat = screen_height - self.frame.size.height * 0.5
+        
+        if center.x > xMax {
+            center.x = xMax
+        }
+        if center.x < xMin {
+            center.x = xMin
+        }
+        if center.y > yMax {
+            center.y = yMax
+        }
+        if center.y < yMin {
+            center.y = yMin
+        }
+        self.center = center
+        
+        //移动距离大于0.5才判断为移动了(提高容错性)
+        if (current.x - previous.x >= 0.5) || (current.y - previous.y >= 0.5) {
+            isMoved = true
+        }
+        if isTouched(touches) {
+        //  setTintLayer()
+        }
+    }
+    
+    @objc open override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if !isMoved {
+            super.touchesEnded(touches, with: event)
+          //  tintLayer.removeFromSuperlayer()
+            if isTouched(touches) {
+              toggle()
+            }
+        }
+        isMoved =  false
+    }
+
+ /* @objc open override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
     super.touchesBegan(touches, with: event)
     if isTouched(touches) {
       setTintLayer()
@@ -951,7 +1027,7 @@ open class Floaty: UIView {
     if isTouched(touches) {
       toggle()
     }
-  }
+  }*/
   
   @objc open override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
     super.touchesCancelled(touches, with: event)
@@ -1261,7 +1337,7 @@ extension Floaty {
       }
       group.enter()
       UIView.animate(withDuration: 0.2, delay: 0, options: [], animations: { () -> Void in
-        item.frame.origin.y = -itemHeight
+        item.frame.origin.y = -itemHeight - 6
         item.alpha = 1
       }, completion: { _ in
         group.leave()
